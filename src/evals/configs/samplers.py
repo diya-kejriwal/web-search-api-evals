@@ -158,4 +158,3 @@ NON_RESEARCH_SAMPLERS = [
     for sampler in SAMPLERS
     if not any(keyword in sampler.sampler_name for keyword in EXCLUDE_KEYWORDS)
 ]
-print(NON_RESEARCH_SAMPLERS)
