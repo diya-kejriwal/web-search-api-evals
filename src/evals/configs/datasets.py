@@ -3,10 +3,12 @@ from collections.abc import Callable
 
 import pandas as pd
 
+from evals import constants
 from evals.processing.evaluate_answer import AnswerGrader
 
 
 evaluator = AnswerGrader()
+fin_search_evaluator = AnswerGrader(model=constants.FIN_SEARCH_GRADER_MODEL)
 
 
 @dataclass
@@ -40,6 +42,18 @@ DATASETS = [
         dataset_name="simpleqa",
         csv_path="data/simpleqa_full_dataset.csv",
         grader=evaluator.evaluate_single_simpleqa,
+        df=None,
+    ),
+    Dataset(
+        dataset_name="fin_search_comp_t2_global",
+        csv_path="data/fin_search_comp_t2_global.csv",
+        grader=fin_search_evaluator.evaluate_single_fin_search,
+        df=None,
+    ),
+    Dataset(
+        dataset_name="fin_search_comp_t3_global",
+        csv_path="data/fin_search_comp_t3_global.csv",
+        grader=fin_search_evaluator.evaluate_single_fin_search,
         df=None,
     ),
 ]

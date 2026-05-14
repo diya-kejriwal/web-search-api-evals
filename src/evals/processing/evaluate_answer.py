@@ -141,3 +141,29 @@ class AnswerGrader:
             "is_incorrect": is_incorrect,
             "score": is_correct,
         }
+
+    async def evaluate_single_fin_search(
+        self, question: str, target: str, predicted_answer: str
+    ) -> Dict[str, Any]:
+        """Evaluate a single response asynchronously for the FinSearchComp dataset."""
+        grader_prompt = constants.FIN_SEARCH_GRADER_TEMPLATE.format(
+            question=question,
+            target=target,
+            predicted_answer=predicted_answer,
+        )
+
+        grading_response = await llm.call_llm(self.model, "", grader_prompt)
+
+        match = re.search(r'"answer_score"\s*:\s*([01])', grading_response)
+        score_value = int(match.group(1)) if match else 0
+
+        is_correct = score_value == 1
+        is_incorrect = score_value == 0
+
+        return {
+            "grade": str(score_value),
+            "score_name": "is_correct" if is_correct else "is_incorrect",
+            "is_correct": is_correct,
+            "is_incorrect": is_incorrect,
+            "score": is_correct,
+        }
