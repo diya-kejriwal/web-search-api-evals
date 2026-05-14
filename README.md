@@ -58,6 +58,7 @@ the API request is used.
 | FRAMES       | Deep research and multi-hop reasoning ([paper](https://arxiv.org/abs/2409.12941), [dataset](https://huggingface.co/datasets/google/frames-benchmark))                                                                                                                                                     | `--datasets frames`       |
 | DeepSearchQA | Challenging multi-step information seeking tasks. Only recommended for use with research endpoints ([paper](https://storage.googleapis.com/deepmind-media/DeepSearchQA/DeepSearchQA_benchmark_paper.pdf), [dataset](https://huggingface.co/datasets/google/deepsearchqa)) | `--datasets deepsearchqa` |
 | BrowseComp   | A simple and challenging benchmark that measures the ability of AI agents to locate hard-to-find information. Only recommended for use with research endpoints ([paper](https://arxiv.org/abs/2504.12516), [dataset](https://openaipublic.blob.core.windows.net/simple-evals/browse_comp_test_set.csv)) | `--datasets browsecomp`   |
+| FinSearchComp T2 & T3 | Public-company financial lookup benchmarks from filings ([paper](https://arxiv.org/pdf/2509.13160)). T2 covers simple historical lookups; T3 covers complex historical investigations. Grading follows the paper's judge prompt; numbers in different formats (e.g. `12.45%` vs `0.1245`) are treated as equivalent. | `--datasets fin_search_comp_t2_simple_historical_lookup_global fin_search_comp_t3_complex_historical_investigation_global` |
 
 
 ## Installation
@@ -88,7 +89,8 @@ Edit `.env` and set the keys for your chosen providers. To run evaluations for a
 | Exa                         | `EXA_API_KEY`           |
 | Google                      | `SERP_API_KEY`           |
 | Parallel                    | `PARALLEL_API_KEY`      |
-| Tavily (basic / advanced)   | `TAVILY_API_KEY`        |
+| Perplexity                  | `PERPLEXITY_API_KEY`    |
+| Tavily                      | `TAVILY_API_KEY`        |
 | You.com                     | `YOU_API_KEY`           |
 
 Grading uses OpenAI models by default, but Gemini models are also supported. Set `OPENAI_API_KEY` or 
@@ -142,6 +144,55 @@ or Gemini model and route your request appropriately.
 | Batch size           | `--batch-size 50`           | Number of problems per batch before writing results (default: 50). |
 | Max concurrent tasks | `--max-concurrent-tasks 10` | Concurrency limit (default: 10).                                   |
 | Clean                | `--clean`                   | Remove existing results and run from scratch. (default False)      |
+
+## Finance evaluation
+
+The `fin_search_comp_t2_simple_historical_lookup_global` dataset evaluates simple historical lookup of public-company financials (e.g. *"What were Uber's research and development expenses for the full year 2019?"*). Ground truth comes from SEC filings and grading follows the prompt from the FinSearchComp paper, which treats numerically equivalent answers (`12.45%` vs `0.1245`, `120,400,000` vs `120.4 million`) as the same and ignores unit-only differences. The grader model is configurable independently of the default `GRADER_MODEL` via `FIN_SEARCH_GRADER_MODEL` in `src/evals/constants.py`.
+
+### Samplers evaluated against this benchmark
+
+| Sampler                                   | Provider   |
+|-------------------------------------------|------------|
+| `you_finance_research_deep`               | You.com    |
+| `you_finance_research_exhaustive`         | You.com    |
+| `perplexity_finance_historical_lookup`    | Perplexity |
+| `perplexity_finance_multi_step_research`  | Perplexity |
+| `perplexity_sonar_deep_research_high`     | Perplexity |
+| `exa_research_pro`                        | Exa        |
+| `tavily_research_pro`                     | Tavily     |
+| `parallel_pro`                            | Parallel   |
+| `parallel_ultra`                          | Parallel   |
+
+### Running the benchmark
+
+```bash
+# Quick sanity check on a single sampler
+python src/evals/eval_runner.py \
+  --samplers you_finance_research_deep \
+  --datasets fin_search_comp_t2_simple_historical_lookup_global \
+  --limit 10
+
+# Full sweep across all finance-capable samplers
+python src/evals/eval_runner.py \
+  --samplers you_finance_research_deep you_finance_research_exhaustive tavily_research_pro \
+  --datasets fin_search_comp_t2_simple_historical_lookup_global
+```
+
+### Results
+
+**FinSearchComp T2 — Simple historical lookup (global)**
+
+| sampler                                  | accuracy   | p50_latency_ms* |
+|------------------------------------------|------------|-----------------|
+| you_finance_research_deep                | **87.29%** | 124.0           |
+| parallel_ultra                           | 73.11%     | 861.3           |
+| perplexity_finance_historical_lookup     | 72.27%     | 32.2            |
+| perplexity_sonar_deep_research_high      | 53.78%     | 92.6            |
+| exa_research_pro                         | 42.02%     | 366.8           |
+| tavily_research_pro                      | 40.34%     | 104.5           |
+| parallel_pro                             | 34.45%     | 317.0           |
+
+* Internal latency as reported by the provider is used when available. When unavailable, the total time taken to complete the API request is used.
 
 ## Output
 

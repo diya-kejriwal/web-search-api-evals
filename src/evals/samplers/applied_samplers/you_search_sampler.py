@@ -1,8 +1,9 @@
-from typing import Any
+from typing import Any, Dict
 
 import youdotcom
 from youdotcom.models import LiveCrawl, LiveCrawlFormats, ResearchEffort
 
+from evals.samplers.base_samplers.base_api_sampler import BaseAPISampler
 from evals.samplers.base_samplers.base_sdk_sampler import (
     BaseSDKSampler,
 )
@@ -164,3 +165,55 @@ class YouResearchSampler(YouSampler):
 
     def format_results(self, results: Any) -> list[str]:
         return results.output.content
+
+
+class YouFinanceResearchSampler(BaseAPISampler):
+    """Sampler for the You.com finance research API.
+
+    Calls POST /v1/finance_research with {"input": query, "research_effort": ...}
+    and returns output.content directly (no synthesis step needed).
+    """
+
+    def __init__(
+        self,
+        sampler_name: str,
+        api_key: str = None,
+        research_effort: str = "deep",
+        timeout: float = 300.0,
+        max_retries: int = 3,
+        base_url: str | None = None,
+    ):
+        self.research_effort = research_effort
+        self._base_url = base_url or "https://api.you.com"
+        super().__init__(
+            sampler_name=sampler_name,
+            api_key=api_key,
+            timeout=timeout,
+            max_retries=max_retries,
+            needs_synthesis=False,
+        )
+
+    def _get_base_url(self) -> str:
+        return self._base_url
+
+    @staticmethod
+    def _get_endpoint() -> str:
+        return "/v1/finance_research"
+
+    @staticmethod
+    def _get_method() -> str:
+        return "POST"
+
+    def _get_headers(self) -> Dict[str, str]:
+        return {
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+            "X-API-Key": self.api_key,
+        }
+
+    def _get_payload(self, query: str) -> Dict[str, Any]:
+        return {"input": query, "research_effort": self.research_effort}
+
+    def format_results(self, results: Any) -> str:
+        output = results.get("output", {}) if isinstance(results, dict) else {}
+        return output.get("content", "")

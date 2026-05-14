@@ -1,5 +1,7 @@
 """Run evals using the Exa SDK"""
 
+import json
+import time
 from typing import Any
 
 from exa_py import Exa
@@ -46,3 +48,49 @@ class ExaSampler(BaseSDKSampler):
                 formatted_results.append(f'[{title}]({url})\ntext: "{text}"\n')
 
         return formatted_results
+
+
+class ExaResearchSampler(BaseSDKSampler):
+    """Exa Research SDK sampler."""
+
+    def __init__(
+        self,
+        sampler_name: str,
+        api_key: str = None,
+        timeout: float = 60.0,
+        max_retries: int = 3,
+        research_model: str = "",
+        needs_synthesis: bool = False,
+    ):
+        self.research_model = research_model
+        super().__init__(
+            sampler_name=sampler_name,
+            api_key=api_key,
+            max_retries=max_retries,
+            timeout=timeout,
+            needs_synthesis=needs_synthesis,
+        )
+
+    def _initialize_client(self):
+        self.client = Exa(self.api_key)
+
+    def _start_research_task(self, query: str):
+        return self.client.research.create(
+            instructions=query,
+            model=self.research_model,
+        )
+
+    def _wait_for_task_to_complete(self, task):
+        while (
+            self.client.research.get(task.research_id, stream=False).status == "running"
+        ):
+            time.sleep(10)
+
+    def _get_search_results_impl(self, query: str) -> Any:
+        research = self._start_research_task(query)
+        self._wait_for_task_to_complete(research)
+        response = self.client.research.get(research.research_id, stream=False).json()
+        return json.loads(response)
+
+    def format_results(self, results: Any) -> list[str]:
+        return [results["output"]["content"]]

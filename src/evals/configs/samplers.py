@@ -2,11 +2,22 @@ import os
 
 from youdotcom.models import ResearchEffort
 
-from evals.samplers.applied_samplers.exa_sampler import ExaSampler
+from evals.samplers.applied_samplers.exa_sampler import ExaResearchSampler, ExaSampler
 from evals.samplers.applied_samplers.google_sampler import GoogleSampler
-from evals.samplers.applied_samplers.parallel_sampler import ParallelSearchSampler
-from evals.samplers.applied_samplers.tavily_sampler import TavilySampler
+from evals.samplers.applied_samplers.parallel_sampler import (
+    ParallelSearchSampler,
+    ParallelTaskSampler,
+)
+from evals.samplers.applied_samplers.perplexity_sampler import (
+    PerplexityDeepSearchSampler,
+    PerplexityFinanceSearchSampler,
+)
+from evals.samplers.applied_samplers.tavily_sampler import (
+    TavilyResearchSampler,
+    TavilySampler,
+)
 from evals.samplers.applied_samplers.you_search_sampler import (
+    YouFinanceResearchSampler,
     YouLivecrawlSampler,
     YouResearchSampler,
     YouSearchSnippetsSampler,
@@ -47,10 +58,29 @@ SAMPLERS = [
         api_key=os.getenv("YOU_API_KEY"),
         include_news_results=False,
     ),
+    # You.com finance research samplers
+    YouFinanceResearchSampler(
+        sampler_name="you_finance_research_deep",
+        api_key=os.getenv("YOU_API_KEY"),
+        research_effort="deep",
+        timeout=300,
+    ),
+    YouFinanceResearchSampler(
+        sampler_name="you_finance_research_exhaustive",
+        api_key=os.getenv("YOU_API_KEY"),
+        research_effort="exhaustive",
+        timeout=600,
+    ),
     ExaSampler(
         sampler_name="exa_search_with_text",
         api_key=os.getenv("EXA_API_KEY"),
         text={"max_characters": 20000},
+    ),
+    ExaResearchSampler(
+        sampler_name="exa_research_pro",
+        api_key=os.getenv("EXA_API_KEY"),
+        research_model="exa-research-pro",
+        timeout=3000,
     ),
     GoogleSampler(
         sampler_name="google_search",
@@ -60,6 +90,19 @@ SAMPLERS = [
         sampler_name="parallel_search_one_shot",
         api_key=os.getenv("PARALLEL_API_KEY"),
         mode="one-shot",
+        num_results=10,
+    ),
+    ParallelTaskSampler(
+        sampler_name="parallel_pro",
+        api_key=os.getenv("PARALLEL_API_KEY"),
+        processor="pro",
+        timeout=3000,
+    ),
+    ParallelTaskSampler(
+        sampler_name="parallel_ultra",
+        api_key=os.getenv("PARALLEL_API_KEY"),
+        processor="ultra",
+        timeout=3000,
     ),
     TavilySampler(
         sampler_name="tavily_basic",
@@ -70,5 +113,39 @@ SAMPLERS = [
         sampler_name="tavily_advanced",
         api_key=os.getenv("TAVILY_API_KEY"),
         search_depth="advanced",
+    ),
+    TavilyResearchSampler(
+        sampler_name="tavily_research_pro",
+        api_key=os.getenv("TAVILY_API_KEY"),
+        research_model="pro",
+        timeout=3000,
+    ),
+    PerplexityFinanceSearchSampler(
+        sampler_name="perplexity_finance_historical_lookup",
+        api_key=os.getenv("PERPLEXITY_API_KEY"),
+        model="openai/gpt-5.5",
+        max_steps=5,
+        max_tokens=2048,
+        include_web_search=True,
+        include_fetch_url=True,
+        reasoning_effort="low",
+        timeout=120,
+    ),
+    PerplexityFinanceSearchSampler(
+        sampler_name="perplexity_finance_multi_step_research",
+        api_key=os.getenv("PERPLEXITY_API_KEY"),
+        model="anthropic/claude-opus-4-7",
+        max_steps=10,
+        max_tokens=4096,
+        include_web_search=True,
+        include_fetch_url=True,
+        timeout=180,
+    ),
+    PerplexityDeepSearchSampler(
+        sampler_name="perplexity_sonar_deep_research_high",
+        api_key=os.getenv("PERPLEXITY_API_KEY"),
+        model="sonar-deep-research",
+        search_effort="high",
+        timeout=3000,
     ),
 ]
