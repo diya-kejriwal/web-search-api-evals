@@ -205,18 +205,12 @@ def write_raw_sampler_results(
 
 async def main():
     available_samplers = [sampler.sampler_name for sampler in samplers.SAMPLERS]
-    # Do not include You.com Research in default samplers due to high cost. Can be included by specifying "--samplers all"
-    all_samplers_no_research = [
-        sampler_name
-        for sampler_name in available_samplers
-        if not sampler_name.startswith("you_research")
-    ]
     available_datasets = [dataset.dataset_name for dataset in datasets.DATASETS]
     default_datasets = ["simpleqa", "frames"]
     parser = argparse.ArgumentParser(description="Run an eval")
     parser.add_argument(
         "--samplers",
-        default=all_samplers_no_research,
+        default=samplers.NON_RESEARCH_SAMPLERS,
         type=str,
         nargs="+",
         help=f'The sampler(s) to use during the eval. Choose from: {available_samplers}. Use "all" to run all available sampler configurations '

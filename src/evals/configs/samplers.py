@@ -87,9 +87,9 @@ SAMPLERS = [
         api_key=os.getenv("SERP_API_KEY"),
     ),
     ParallelSearchSampler(
-        sampler_name="parallel_search_one_shot",
+        sampler_name="parallel_search_basic",
         api_key=os.getenv("PARALLEL_API_KEY"),
-        mode="one-shot",
+        mode="basic",
         num_results=10,
     ),
     ParallelTaskSampler(
@@ -149,3 +149,13 @@ SAMPLERS = [
         timeout=3000,
     ),
 ]
+
+# Samplers excluded from default runs due to high cost or long latency
+_SLOW_SAMPLER_KEYWORDS = ["research", "parallel_pro", "parallel_ultra", 'perplexity_finance_historical_lookup']
+
+NON_RESEARCH_SAMPLERS = [
+    sampler.sampler_name
+    for sampler in SAMPLERS
+    if not any(keyword in sampler.sampler_name for keyword in _SLOW_SAMPLER_KEYWORDS)
+]
+print(NON_RESEARCH_SAMPLERS)

@@ -28,7 +28,7 @@ GPT 5.4 nano was used as the synthesis model.
 |---------------------------|----------|-----------------|
 | you_search_with_livecrawl |**92.09%**| 1048.05         |
 | exa_search_with_text      | 90.06%   | 1176.05         |
-| parallel_search_one_shot  | 89.78%   | 1901.66         |
+| parallel_search_basic     | 89.78%   | 1901.66         |
 | tavily_advanced           | 86.32%   | 3190.00         |
 | you_search                | 84.81%   | 538.44          |
 | google_search             | 80.17%   | 1347.48         |
@@ -44,7 +44,7 @@ the API request is used.
 | tavily_advanced           | 39.93%   | 3460.00        |
 | exa_search_with_text      | 39.81%   | 1351.75        |
 | you_search_with_livecrawl | 37.26%   | 1153.78        |
-| parallel_search_one_shot  | 34.83%   | 2118.61        |
+| parallel_search_basic     | 34.83%   | 2118.61        |
 | you_search                | 28.03%   | 565.80         |
 | google_search             | 22.94%   | 1475.05        |
 | tavily_basic              | 19.30%   | 2180.00        |
