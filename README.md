@@ -4,7 +4,7 @@ This repository contains evaluation framework for AI-first web search APIs. Each
 
 The framework supports multiple search providers (You.com, Exa, Tavily, Parallel) and a representative 
 Google SERP–based sampler. For each query, search results are fetched from the search API, synthesized into an answer 
-using an LLM, then graded against the ground truth.[^1]
+using an LLM, then graded against the ground truth.[^1] It also includes a dedicated [finance evaluation](#finance-evaluation) suite for benchmarking financial data retrieval.
 
 
 To learn more about our evals methodology and system architecture, please read You.com's research articles:
@@ -147,7 +147,9 @@ or Gemini model and route your request appropriately.
 
 ## Finance evaluation
 
-The `fin_search_comp_t2_global` dataset evaluates simple historical lookup of public-company financials (e.g. *"What were Uber's research and development expenses for the full year 2019?"*). Ground truth comes from SEC filings and grading follows the prompt from the FinSearchComp paper, which treats numerically equivalent answers (`12.45%` vs `0.1245`, `120,400,000` vs `120.4 million`) as the same and ignores unit-only differences. The grader model is configurable independently of the default `GRADER_MODEL` via `FIN_SEARCH_GRADER_MODEL` in `src/evals/constants.py`.
+To learn more about You.com's Finance Research API, read our [blog post](https://you.com/resources/introducing-the-finance-research-api-agentic-research-no-infra-required).
+
+The `fin_search_comp_t2_global` dataset evaluates simple historical lookup of public-company financials (e.g. *"What were Uber's research and development expenses for the full year 2019?"*). Ground truth comes from SEC filings and grading follows the prompt from the FinSearchComp paper[^3], which treats numerically equivalent answers (`12.45%` vs `0.1245`, `120,400,000` vs `120.4 million`) as the same and ignores unit-only differences. The grader model is configurable independently of the default `GRADER_MODEL` via `FIN_SEARCH_GRADER_MODEL` in `src/evals/constants.py`.
 
 ### Samplers evaluated against this benchmark
 
@@ -230,3 +232,4 @@ This repository is made available under the [MIT License](LICENSE).
 
 [^1]: Search results are fetched from each search API, then synthesized into a single answer using an LLM; the answer is graded by an LLM judge. Synthesis uses GPT 5.4 nano and grading uses GPT 5.4 mini (configurable in `src/evals/constants.py`).
 [^2]: Grading uses prompts aligned with the standard benchmarks as specified in the original papers or repositories (e.g. [SimpleQA](https://openai.com/index/introducing-simpleqa/) and [FRAMES](https://arxiv.org/abs/2409.12941).
+[^3]: FinSearchComp grading uses the judge prompt from the [FinSearchComp paper](https://arxiv.org/pdf/2509.13160).
