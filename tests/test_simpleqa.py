@@ -58,7 +58,7 @@ async def test_simpleqa_runner(test_results_cleanup):
     num_problems = 2
     results_dir = get_test_results_dir()
     args = argparse.Namespace(
-        samplers=[sampler.sampler_name for sampler in samplers.SAMPLERS],
+        samplers=samplers.NON_RESEARCH_SAMPLERS,
         datasets=["simpleqa"],
         limit=num_problems,  # Test with small subset for speed
         batch_size=10,
