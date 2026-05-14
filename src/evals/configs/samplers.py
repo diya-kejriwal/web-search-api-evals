@@ -151,11 +151,11 @@ SAMPLERS = [
 ]
 
 # Samplers excluded from default runs due to high cost or long latency
-_SLOW_SAMPLER_KEYWORDS = ["research", "parallel_pro", "parallel_ultra", 'perplexity_finance_historical_lookup']
+EXCLUDE_KEYWORDS = ["research", "parallel_pro", "parallel_ultra", 'perplexity_finance_historical_lookup']
 
 NON_RESEARCH_SAMPLERS = [
     sampler.sampler_name
     for sampler in SAMPLERS
-    if not any(keyword in sampler.sampler_name for keyword in _SLOW_SAMPLER_KEYWORDS)
+    if not any(keyword in sampler.sampler_name for keyword in EXCLUDE_KEYWORDS)
 ]
 print(NON_RESEARCH_SAMPLERS)
