@@ -58,7 +58,7 @@ the API request is used.
 | FRAMES       | Deep research and multi-hop reasoning ([paper](https://arxiv.org/abs/2409.12941), [dataset](https://huggingface.co/datasets/google/frames-benchmark))                                                                                                                                                     | `--datasets frames`       |
 | DeepSearchQA | Challenging multi-step information seeking tasks. Only recommended for use with research endpoints ([paper](https://storage.googleapis.com/deepmind-media/DeepSearchQA/DeepSearchQA_benchmark_paper.pdf), [dataset](https://huggingface.co/datasets/google/deepsearchqa)) | `--datasets deepsearchqa` |
 | BrowseComp   | A simple and challenging benchmark that measures the ability of AI agents to locate hard-to-find information. Only recommended for use with research endpoints ([paper](https://arxiv.org/abs/2504.12516), [dataset](https://openaipublic.blob.core.windows.net/simple-evals/browse_comp_test_set.csv)) | `--datasets browsecomp`   |
-| FinSearchComp T2 & T3 | Public-company financial lookup benchmarks from filings ([paper](https://arxiv.org/pdf/2509.13160)). T2 covers simple historical lookups; T3 covers complex historical investigations. Grading follows the paper's judge prompt; numbers in different formats (e.g. `12.45%` vs `0.1245`) are treated as equivalent. | `--datasets fin_search_comp_t2_simple_historical_lookup_global fin_search_comp_t3_complex_historical_investigation_global` |
+| FinSearchComp T2 & T3 | Public-company financial lookup benchmarks from filings ([paper](https://arxiv.org/pdf/2509.13160)). T2 covers simple historical lookups; T3 covers complex historical investigations. Grading follows the paper's judge prompt; numbers in different formats (e.g. `12.45%` vs `0.1245`) are treated as equivalent. | `--datasets fin_search_comp_t2_global fin_search_comp_t3_global` |
 
 
 ## Installation
@@ -147,7 +147,7 @@ or Gemini model and route your request appropriately.
 
 ## Finance evaluation
 
-The `fin_search_comp_t2_simple_historical_lookup_global` dataset evaluates simple historical lookup of public-company financials (e.g. *"What were Uber's research and development expenses for the full year 2019?"*). Ground truth comes from SEC filings and grading follows the prompt from the FinSearchComp paper, which treats numerically equivalent answers (`12.45%` vs `0.1245`, `120,400,000` vs `120.4 million`) as the same and ignores unit-only differences. The grader model is configurable independently of the default `GRADER_MODEL` via `FIN_SEARCH_GRADER_MODEL` in `src/evals/constants.py`.
+The `fin_search_comp_t2_global` dataset evaluates simple historical lookup of public-company financials (e.g. *"What were Uber's research and development expenses for the full year 2019?"*). Ground truth comes from SEC filings and grading follows the prompt from the FinSearchComp paper, which treats numerically equivalent answers (`12.45%` vs `0.1245`, `120,400,000` vs `120.4 million`) as the same and ignores unit-only differences. The grader model is configurable independently of the default `GRADER_MODEL` via `FIN_SEARCH_GRADER_MODEL` in `src/evals/constants.py`.
 
 ### Samplers evaluated against this benchmark
 
@@ -169,13 +169,13 @@ The `fin_search_comp_t2_simple_historical_lookup_global` dataset evaluates simpl
 # Quick sanity check on a single sampler
 python src/evals/eval_runner.py \
   --samplers you_finance_research_deep \
-  --datasets fin_search_comp_t2_simple_historical_lookup_global \
+  --datasets fin_search_comp_t2_global \
   --limit 10
 
 # Full sweep across all finance-capable samplers
 python src/evals/eval_runner.py \
   --samplers you_finance_research_deep you_finance_research_exhaustive tavily_research_pro \
-  --datasets fin_search_comp_t2_simple_historical_lookup_global
+  --datasets fin_search_comp_t2_global
 ```
 
 ### Results

@@ -45,14 +45,14 @@ DATASETS = [
         df=None,
     ),
     Dataset(
-        dataset_name="fin_search_comp_t2_simple_historical_lookup_global",
-        csv_path="data/fin_search_comp_t2_simple_historical_lookup_global.csv",
+        dataset_name="fin_search_comp_t2_global",
+        csv_path="data/fin_search_comp_t2_global.csv",
         grader=fin_search_evaluator.evaluate_single_fin_search,
         df=None,
     ),
     Dataset(
-        dataset_name="fin_search_comp_t3_complex_historical_investigation_global",
-        csv_path="data/fin_search_comp_t3_complex_historical_Investigation_global.csv",
+        dataset_name="fin_search_comp_t3_global",
+        csv_path="data/fin_search_comp_t3_global.csv",
         grader=fin_search_evaluator.evaluate_single_fin_search,
         df=None,
     ),
