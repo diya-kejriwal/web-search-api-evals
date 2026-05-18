@@ -17,12 +17,14 @@ class BaseSampler(ABC):
         timeout: float = 60.0,
         max_retries: int = 3,
         needs_synthesis: bool = True,
+        max_concurrency: int = 10,
     ):
         self.api_key = api_key
         self.sampler_name = sampler_name
         self.timeout = timeout
         self.max_retries = max_retries
         self.needs_synthesis = needs_synthesis
+        self.max_concurrency = max_concurrency
 
     @abstractmethod
     async def get_search_results(self, query: str) -> Any:
