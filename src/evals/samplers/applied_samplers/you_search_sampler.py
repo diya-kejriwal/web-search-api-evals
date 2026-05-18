@@ -154,6 +154,7 @@ class YouResearchSampler(YouSampler):
             max_retries=max_retries,
             timeout=timeout,
             needs_synthesis=needs_synthesis,
+            max_concurrency=5,
         )
         self.research_effort = research_effort
 
@@ -191,6 +192,7 @@ class YouFinanceResearchSampler(BaseAPISampler):
             timeout=timeout,
             max_retries=max_retries,
             needs_synthesis=False,
+            max_concurrency=5,
         )
 
     def _get_base_url(self) -> str:

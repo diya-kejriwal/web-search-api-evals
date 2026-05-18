@@ -133,7 +133,8 @@ async def run_evals(
                 desc=f"Running sampler: {sampler.sampler_name} for dataset {dataset.dataset_name}",
                 unit="queries",
             ) as pbar:
-                semaphore = asyncio.Semaphore(args.max_concurrent_tasks)
+                max_tasks = args.max_concurrent_tasks or sampler.max_concurrency
+                semaphore = asyncio.Semaphore(max_tasks)
                 tasks = []
                 # Create tasks all at once
                 for _, row in dataset.df.iterrows():
@@ -239,9 +240,9 @@ async def main():
     )
     parser.add_argument(
         "--max-concurrent-tasks",
-        default=10,
+        default=None,
         type=int,
-        help="Maximum number of concurrent async tasks (controls parallelism via semaphore)",
+        help="Maximum number of concurrent async tasks (controls parallelism via semaphore). Defaults to 5 for You.com deep research samplers, 10 otherwise.",
     )
     parser.add_argument(
         "--clean",
