@@ -209,10 +209,15 @@ structured `people[]` JSON (no LLM synthesis step). Deterministic scorers measur
 | `has_people` / accuracy | At least one person returned (`is_correct`) |
 | `field_fill` | Mean fill ratio across 11 universal person fields (0–1) |
 | `persona_field_fill` | Same fields, weighted by buyer persona |
+| `judge_overall` | LLM overall quality judge (High Value 1.0 / Useful 0.7 / Low Value 0.3 / Failed 0.0) |
+| `judge_persona` | LLM persona-switched judge (same scale) |
 
 **Endpoint contract:** `POST` JSON `{"query": "...", "metadata": {...}}` →
 `{"people": [...], "person_count": N, "error": null}`. Optional `Authorization: Bearer $PEOPLE_SEARCH_API_KEY`.
 See `src/evals/samplers/applied_samplers/people_search_sampler.py` for the full field list scorers look for.
+
+LLM judges use `GRADER_MODEL` (default GPT) and require `OPENAI_API_KEY` or `GOOGLE_GEMINI_API_KEY`.
+Set `PEOPLE_SEARCH_LLM_JUDGES=0` to run deterministic scorers only.
 
 ```bash
 # Set PEOPLE_SEARCH_API_URL (and optional PEOPLE_SEARCH_API_KEY) in .env

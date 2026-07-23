@@ -6,6 +6,7 @@ import pytest
 
 from evals.processing.evaluate_answer import AnswerGrader
 from evals.processing.people_search.field_fill import score_people_output
+from evals.processing.people_search.llm_judges import _parse_label
 from evals.processing.people_search.schema import normalize_people_payload
 
 
@@ -52,8 +53,18 @@ def test_normalize_people_payload_variants():
     assert results_key["person_count"] == 1
 
 
+def test_parse_judge_label():
+    label, score = _parse_label("Looks good.\nLABEL: Useful\n")
+    assert label == "Useful"
+    assert score == 0.7
+    label, score = _parse_label("LABEL: High Value")
+    assert label == "High Value"
+    assert score == 1.0
+
+
 @pytest.mark.asyncio
-async def test_evaluate_single_people_search_grader():
+async def test_evaluate_single_people_search_grader(monkeypatch):
+    monkeypatch.setenv("PEOPLE_SEARCH_LLM_JUDGES", "0")
     grader = AnswerGrader()
     target = json.dumps(
         {
@@ -84,3 +95,4 @@ async def test_evaluate_single_people_search_grader():
     assert result["has_people"] == 1.0
     assert "field_fill" in result
     assert "persona_field_fill" in result
+    assert "judge_overall" not in result

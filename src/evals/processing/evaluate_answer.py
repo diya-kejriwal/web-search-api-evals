@@ -12,6 +12,7 @@ from typing import Dict, Any
 from evals import constants
 from evals.processing import llm, deepsearchqa_utils
 from evals.processing.people_search.field_fill import score_people_output
+from evals.processing.people_search.llm_judges import run_people_llm_judges
 
 
 class AnswerGrader:
@@ -194,8 +195,13 @@ class AnswerGrader:
 
         scores = score_people_output(output, metadata)
         has_people = scores["has_people"] >= 1.0
+
+        judge_scores = await run_people_llm_judges(
+            question, output, metadata, model=self.model
+        )
+
         # Binary accuracy for framework compatibility: retrieved at least one person.
-        # Primary quality signals are the continuous field_fill scores.
+        # Primary quality signals are continuous field_fill + LLM judge scores.
         return {
             "grade": "has_people" if has_people else "no_people",
             "score_name": "is_correct" if has_people else "is_incorrect",
@@ -208,4 +214,5 @@ class AnswerGrader:
             "persona_field_fill": scores["persona_field_fill"],
             "persona": scores.get("persona"),
             "question": question,
+            **judge_scores,
         }

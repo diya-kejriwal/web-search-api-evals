@@ -124,6 +124,18 @@ def write_metrics(results_dir: Optional[Path] = None):
                 ),
                 4,
             )
+        if "judge_overall" in successful_df.columns:
+            values = (
+                pd.to_numeric(successful_df["judge_overall"], errors="coerce").dropna()
+            )
+            if len(values):
+                row["mean_judge_overall"] = round(float(values.mean()), 4)
+        if "judge_persona" in successful_df.columns:
+            values = (
+                pd.to_numeric(successful_df["judge_persona"], errors="coerce").dropna()
+            )
+            if len(values):
+                row["mean_judge_persona"] = round(float(values.mean()), 4)
 
         metric_rows.append(row)
 
