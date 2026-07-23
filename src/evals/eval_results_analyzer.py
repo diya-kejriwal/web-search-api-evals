@@ -38,6 +38,9 @@ def write_metrics(results_dir: Optional[Path] = None):
     """
     Calculate metrics from raw results such as accuracy score, P50 latency, and average latency.
 
+    For people_search (scorer-based), also reports mean field_fill / persona_field_fill.
+    accuracy_score for people_search is the has_people rate (is_correct).
+
     Args:
         results_dir: Optional path to results directory. Defaults to src/evals/results
     """
@@ -79,18 +82,50 @@ def write_metrics(results_dir: Optional[Path] = None):
 
         accuracy_score = round((correct / count_answered) * 100, 2)
 
-        metric_rows.append(
-            {
-                "provider": sampler_name,
-                "dataset": dataset_name,
-                "accuracy_score": accuracy_score,
-                "p50_internal_latency": round(float(p50_internal_latency), 2),
-                "p50_request_response_latency": round(
-                    float(p50_request_response_latency), 2
+        row = {
+            "provider": sampler_name,
+            "dataset": dataset_name,
+            "accuracy_score": accuracy_score,
+            "p50_internal_latency": round(float(p50_internal_latency), 2)
+            if pd.notna(p50_internal_latency)
+            else None,
+            "p50_request_response_latency": round(
+                float(p50_request_response_latency), 2
+            )
+            if pd.notna(p50_request_response_latency)
+            else None,
+            "problem_count": count_answered,
+        }
+
+        if "field_fill" in successful_df.columns:
+            row["mean_field_fill"] = round(
+                float(
+                    pd.to_numeric(successful_df["field_fill"], errors="coerce")
+                    .dropna()
+                    .mean()
                 ),
-                "problem_count": count_answered,
-            }
-        )
+                4,
+            )
+        if "persona_field_fill" in successful_df.columns:
+            row["mean_persona_field_fill"] = round(
+                float(
+                    pd.to_numeric(successful_df["persona_field_fill"], errors="coerce")
+                    .dropna()
+                    .mean()
+                ),
+                4,
+            )
+        if "has_people" in successful_df.columns:
+            row["has_people_rate"] = round(
+                float(
+                    pd.to_numeric(successful_df["has_people"], errors="coerce")
+                    .dropna()
+                    .mean()
+                ),
+                4,
+            )
+
+        metric_rows.append(row)
 
     write_path = results_dir / "analyzed_results.csv"
     metric_df = pd.DataFrame(metric_rows).sort_values(
@@ -98,4 +133,3 @@ def write_metrics(results_dir: Optional[Path] = None):
     )
     metric_df.to_csv(write_path, index=False)
     print(f"Results were written to {write_path}")
-    print(metric_df)

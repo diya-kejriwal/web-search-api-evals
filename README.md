@@ -59,6 +59,7 @@ the API request is used.
 | DeepSearchQA | Challenging multi-step information seeking tasks. Only recommended for use with research endpoints ([paper](https://storage.googleapis.com/deepmind-media/DeepSearchQA/DeepSearchQA_benchmark_paper.pdf), [dataset](https://huggingface.co/datasets/google/deepsearchqa)) | `--datasets deepsearchqa` |
 | BrowseComp   | A simple and challenging benchmark that measures the ability of AI agents to locate hard-to-find information. Only recommended for use with research endpoints ([paper](https://arxiv.org/abs/2504.12516), [dataset](https://openaipublic.blob.core.windows.net/simple-evals/browse_comp_test_set.csv)) | `--datasets browsecomp`   |
 | FinSearchComp T2 & T3 | Public-company financial lookup benchmarks from filings ([paper](https://arxiv.org/pdf/2509.13160)). T2 covers simple historical lookups; T3 covers complex historical investigations. Grading follows the paper's judge prompt; numbers in different formats (e.g. `12.45%` vs `0.1245`) are treated as equivalent. | `--datasets fin_search_comp_t2_global fin_search_comp_t3_global` |
+| People Search | 240 people-search / enrichment queries across 6 buyer personas. **No gold answers** — graded with deterministic field-fill scorers on structured `people[]` output from people-data APIs (`nyne_people`, `pdl_people`, `exa_people`). | `--datasets people_search --samplers nyne_people` |
 
 
 ## Installation
@@ -92,9 +93,18 @@ Edit `.env` and set the keys for your chosen providers. To run evaluations for a
 | Perplexity                  | `PERPLEXITY_API_KEY`    |
 | Tavily                      | `TAVILY_API_KEY`        |
 | You.com                     | `YOU_API_KEY`           |
+| Nyne (people search)        | `NYNE_API_KEY` + `NYNE_API_SECRET` |
+| People Data Labs            | `PDL_API_KEY`           |
 
 Grading uses OpenAI models by default, but Gemini models are also supported. Set `OPENAI_API_KEY` or 
 `GOOGLE_GEMINI_KEY` as appropriate for the LLM judge.
+
+People-search samplers also need the optional client package:
+
+```bash
+pip install -e /path/to/people-search-eval
+# or: export PEOPLE_SEARCH_EVAL_SRC=/path/to/people-search-eval/src
+```
 
 ## Usage
 
@@ -195,6 +205,30 @@ python src/evals/eval_runner.py \
 | parallel_pro                             | 34.45%     | 317.0           |
 
 * Internal latency as reported by the provider is used when available. When unavailable, the total time taken to complete the API request is used.
+
+## People Search evaluation
+
+Unlike SimpleQA / FRAMES, the `people_search` dataset has **no gold answers**. Each row is a natural-language
+people enrichment or search query. People-API samplers return structured `people[]` payloads (no LLM synthesis step).
+Deterministic scorers measure retrieval and field richness:
+
+| Metric | Meaning |
+|--------|---------|
+| `has_people` / accuracy | At least one person returned (`is_correct`) |
+| `field_fill` | Mean fill ratio across 11 universal person fields (0–1) |
+| `persona_field_fill` | Same fields, weighted by buyer persona |
+
+```bash
+# Requires people-search-eval clients + NYNE_API_KEY / NYNE_API_SECRET
+python src/evals/eval_runner.py \
+  --samplers nyne_people \
+  --datasets people_search \
+  --limit 5 \
+  --max-concurrent-tasks 2
+```
+
+People samplers (`nyne_people`, `pdl_people`, `exa_people`) are excluded from the default sampler list so they are not
+accidentally run against SimpleQA/FRAMES.
 
 ## Output
 

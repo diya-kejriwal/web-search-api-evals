@@ -22,6 +22,11 @@ from evals.samplers.applied_samplers.you_search_sampler import (
     YouResearchSampler,
     YouSearchSnippetsSampler,
 )
+from evals.samplers.applied_samplers.people_search_sampler import (
+    ExaPeopleSampler,
+    NynePeopleSampler,
+    PdlPeopleSampler,
+)
 
 
 SAMPLERS = [
@@ -148,10 +153,35 @@ SAMPLERS = [
         search_effort="high",
         timeout=3000,
     ),
+    # People-search providers (scorer-based; excluded from default sampler list)
+    NynePeopleSampler(
+        sampler_name="nyne_people",
+        api_key=os.getenv("NYNE_API_KEY"),
+        timeout=600,
+        max_concurrency=2,
+    ),
+    PdlPeopleSampler(
+        sampler_name="pdl_people",
+        api_key=os.getenv("PDL_API_KEY"),
+        timeout=300,
+        max_concurrency=2,
+    ),
+    ExaPeopleSampler(
+        sampler_name="exa_people",
+        api_key=os.getenv("EXA_API_KEY"),
+        timeout=180,
+        max_concurrency=3,
+    ),
 ]
 
-# Samplers excluded from default runs due to high cost or long latency
-EXCLUDE_KEYWORDS = ["research", "parallel_pro", "parallel_ultra", 'perplexity_finance_historical_lookup']
+# Samplers excluded from default runs due to high cost, long latency, or special datasets
+EXCLUDE_KEYWORDS = [
+    "research",
+    "parallel_pro",
+    "parallel_ultra",
+    "perplexity_finance_historical_lookup",
+    "_people",
+]
 
 NON_RESEARCH_SAMPLERS = [
     sampler.sampler_name
