@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Publish all full-provider Braintrust LLM judges."""
+"""Publish people-search Braintrust LLM judges."""
 
 from __future__ import annotations
 
@@ -10,8 +10,9 @@ from pathlib import Path
 from braintrust.framework2 import projects
 from dotenv import load_dotenv
 
-ROOT = Path(__file__).resolve().parent
-PROMPTS_DIR = ROOT / "scorers" / "prompts"
+SCORERS_DIR = Path(__file__).resolve().parent
+ROOT = SCORERS_DIR.parent
+PROMPTS_DIR = SCORERS_DIR / "prompts"
 
 CHOICE_SCORES = {
     "High Value": 1.0,
@@ -36,7 +37,7 @@ def _load_prompt(path: Path) -> str:
 
 
 def parse_args():
-    p = argparse.ArgumentParser(description="Publish full-provider Braintrust judges")
+    p = argparse.ArgumentParser(description="Publish people-search Braintrust judges")
     p.add_argument("--project", default=os.environ.get("BRAINTRUST_PROJECT", "people-data-provider-evals"))
     p.add_argument("--model", default=os.environ.get("SCORER_MODEL", "claude-opus-4-6"))
     p.add_argument("--dry-run", action="store_true")
@@ -63,7 +64,7 @@ def main():
         project.scorers.create(
             name=name,
             slug=slug,
-            description=f"Full-provider people-search judge ({name})",
+            description=f"People-search judge ({name})",
             messages=[{"role": "user", "content": prompt}],
             model=args.model,
             use_cot=True,

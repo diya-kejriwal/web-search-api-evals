@@ -1,10 +1,11 @@
-"""Configuration for full-provider-eval."""
+"""Configuration for people-search-eval."""
 
 import os
 from pathlib import Path
 
+# data/people-search-eval/
 ROOT = Path(__file__).resolve().parents[2]
-DATASET_DIR = ROOT
+DATASET_DIR = ROOT / "dataset"
 DATASET_JSON = DATASET_DIR / "full_provider_benchmark.json"
 DATASET_JSONL = DATASET_DIR / "full_provider_benchmark.jsonl"
 BRAINTRUST_DATASET = os.environ.get("BRAINTRUST_DATASET", "full_provider_benchmark")
@@ -19,7 +20,6 @@ PERSONA_SLUGS = {
     "VC / PE / Investor": "investor",
 }
 
-# Exa category_group routing (maps to people / news / company via exa_routing.py).
 PERSONA_TO_EXA_CATEGORY_GROUP = {
     "recruiter": "talent_sourcing",
     "sdr": "contact_information",
@@ -29,8 +29,5 @@ PERSONA_TO_EXA_CATEGORY_GROUP = {
     "investor": "talent_sourcing",
 }
 
-# Single persona-switched judge (reads metadata.persona / output.judge_persona
-# and applies the matching rubric inside one prompt).
 PERSONA_JUDGE_SLUG = os.environ.get("BRAINTRUST_PERSONA_SCORER", "people-judge-persona")
-
 OVERALL_JUDGE_SLUG = os.environ.get("BRAINTRUST_OVERALL_SCORER", "people-judge-overall")

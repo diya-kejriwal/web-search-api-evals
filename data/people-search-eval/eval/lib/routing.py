@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import re
 
-from full_provider_eval.config import PERSONA_SLUGS, PERSONA_TO_EXA_CATEGORY_GROUP
+from lib.config import PERSONA_SLUGS, PERSONA_TO_EXA_CATEGORY_GROUP
 
 _VERIFY_RE = re.compile(r"\bverify\b", re.I)
 

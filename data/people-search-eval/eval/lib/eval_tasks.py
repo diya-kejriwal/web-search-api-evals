@@ -9,9 +9,10 @@ from pathlib import Path
 
 from braintrust import current_span, traced
 
-from full_provider_eval.people_preview import scorer_output_fields
-from full_provider_eval.routing import record_for_exa, record_from_row
+from lib.people_preview import scorer_output_fields
+from lib.routing import record_for_exa, record_from_row
 
+# data/people-search-eval/
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
 

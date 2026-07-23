@@ -1,6 +1,6 @@
 # SCORERS.md — people-search eval
 
-Dataset: `full_provider_benchmark.json` (240 rows, 6 personas × 40 queries).
+Dataset: `dataset/full_provider_benchmark.json` (240 rows, 6 personas × 40 queries).
 
 ## Scorer layers
 
@@ -39,17 +39,15 @@ Prompt sources: `scorers/prompts/*.md`
 ```bash
 cd data/people-search-eval
 pip install -r requirements.txt
-pip install -e ../../../people-search-eval   # Nyne/PDL/Exa clients
+pip install -e ../../../people-search-eval
 cp .env.example .env
-python publish_scorers.py
+python scorers/publish_scorers.py
 ```
 
 ## Run evals
 
 ```bash
-python eval_nyne_braintrust.py --local-dataset --limit 3 --no-send-logs --low-credits
-python eval_pdl_braintrust.py --local-dataset --limit 3 --no-send-logs
-python eval_exa_braintrust.py --local-dataset --limit 3 --no-send-logs
-
-python eval_nyne_braintrust.py --project people-data-provider-evals --dataset full_provider_benchmark
+python eval/run_nyne.py --local-dataset --limit 3 --no-send-logs --low-credits
+python eval/run_pdl.py --local-dataset --limit 3 --no-send-logs
+python eval/run_exa.py --local-dataset --limit 3 --no-send-logs
 ```

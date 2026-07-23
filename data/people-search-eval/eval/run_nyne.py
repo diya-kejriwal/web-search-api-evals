@@ -1,39 +1,33 @@
 #!/usr/bin/env python3
 """
-Braintrust eval — full-provider benchmark × Nyne.
+Braintrust eval — people-search benchmark × Nyne.
 
-  # Full run on uploaded Braintrust dataset, low Nyne credits (recommended)
-  NYNE_INSIGHTS=0 NYNE_PROFILE_SCORING=0 NYNE_PROBABILITY_SCORE=0 NYNE_SEARCH_LIMIT=5 \\
-    python eval_nyne_braintrust.py --low-credits
-
-  # Preview routing without API calls
-  python eval_nyne_braintrust.py --routing-audit
-
-  # Local smoke test
-  python eval_nyne_braintrust.py --local-dataset --limit 3 --no-send-logs --low-credits
+  python eval/run_nyne.py --low-credits
+  python eval/run_nyne.py --routing-audit
+  python eval/run_nyne.py --local-dataset --limit 3 --no-send-logs --low-credits
 """
 
 from __future__ import annotations
 
 import argparse
-import json
 import os
 import sys
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parent
-sys.path.insert(0, str(ROOT / "src"))
+PKG_ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(PKG_ROOT))
+sys.path.insert(0, str(PKG_ROOT / "eval"))
 
-from full_provider_eval.config import (
+from lib.config import (
     BRAINTRUST_DATASET,
     DATASET_JSON,
     OVERALL_JUDGE_SLUG,
     PERSONA_JUDGE_SLUG,
 )
-from full_provider_eval.dataset_loader import load_cloud_dataset, load_local_dataset
-from full_provider_eval.eval_runner import bootstrap_env, run_eval
-from full_provider_eval.eval_tasks import nyne_task
-from full_provider_eval.routing import audit_nyne_routing, record_from_row
+from lib.dataset_loader import load_cloud_dataset, load_local_dataset
+from lib.eval_runner import bootstrap_env, run_eval
+from lib.eval_tasks import nyne_task
+from lib.routing import audit_nyne_routing, record_from_row
 
 
 def _apply_low_credits_env() -> None:
@@ -45,7 +39,7 @@ def _apply_low_credits_env() -> None:
 
 
 def parse_args():
-    p = argparse.ArgumentParser(description="Nyne eval for full-provider benchmark")
+    p = argparse.ArgumentParser(description="Nyne eval for people-search benchmark")
     p.add_argument("--project", default=os.environ.get("BRAINTRUST_PROJECT", "people-data-provider-evals"))
     p.add_argument("--dataset", default=None, help=f"Braintrust dataset (default: {BRAINTRUST_DATASET})")
     p.add_argument(
@@ -89,10 +83,9 @@ def _load_rows(args) -> list[dict]:
     if args.local_dataset is not None:
         path = Path(args.local_dataset)
         if not path.is_absolute():
-            path = ROOT / path
+            path = PKG_ROOT / path
         return load_local_dataset(path, args.limit)
-    path = DATASET_JSON
-    return load_local_dataset(path, args.limit)
+    return load_local_dataset(DATASET_JSON, args.limit)
 
 
 def _print_routing_audit(rows: list[dict]) -> None:
@@ -107,7 +100,6 @@ def _print_routing_audit(rows: list[dict]) -> None:
     print("  metadata.query_type=search (or enrichment w/o person_name) → person/search")
     print("  verify* queries on enrichment → +verification_claims, probability_score if enabled")
     print()
-    # Show a few examples
     shown = 0
     for row in rows:
         rec = record_from_row(row)

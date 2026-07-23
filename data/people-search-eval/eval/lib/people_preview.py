@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from full_provider_eval.config import PERSONA_SLUGS
-from full_provider_eval.routing import persona_slug
+from lib.config import PERSONA_SLUGS
+from lib.routing import persona_slug
 
 
 def named_target_from_metadata(metadata: dict | None) -> str:

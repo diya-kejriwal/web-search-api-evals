@@ -10,16 +10,17 @@ from pathlib import Path
 from braintrust import Eval, init_dataset, init_function
 from dotenv import load_dotenv
 
-from full_provider_eval.config import (
+from lib.config import (
     BRAINTRUST_DATASET,
     BRAINTRUST_PROJECT,
     OVERALL_JUDGE_SLUG,
     PERSONA_JUDGE_SLUG,
 )
-from full_provider_eval.dataset_loader import load_cloud_dataset, load_local_dataset
-from full_provider_eval.scorers.field_fill_scorer import field_fill_scorer
-from full_provider_eval.scorers.persona_field_fill_scorer import persona_field_fill_scorer
+from lib.dataset_loader import load_cloud_dataset, load_local_dataset
+from scorers.field_fill_scorer import field_fill_scorer
+from scorers.persona_field_fill_scorer import persona_field_fill_scorer
 
+# data/people-search-eval/
 ROOT = Path(__file__).resolve().parents[2]
 
 

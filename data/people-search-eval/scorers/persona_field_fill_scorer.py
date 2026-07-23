@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from full_provider_eval.people_preview import judge_persona_from_metadata
-from full_provider_eval.scorers.field_fill_scorer import (
+from lib.people_preview import judge_persona_from_metadata
+from scorers.field_fill_scorer import (
     TRACKED_FIELDS,
     _extract_people,
     _is_filled,
