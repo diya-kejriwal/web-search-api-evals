@@ -6,12 +6,15 @@
 - **Deterministic scorers** — `has_people`, `field_fill`, `persona_field_fill`
 - **LLM judges** — `people-judge-overall`, `people-judge-persona` (see [SCORERS.md](SCORERS.md))
 
+**Results:** [Braintrust experiments (people-data-provider-evals)](https://www.braintrust.dev/app/you.com-staging/p/people-data-provider-evals/experiments)
+
 ## Layout
 
 ```
 data/people-search-eval/
 ├── dataset/
-│   └── full_provider_benchmark.json   # query set (Braintrust-ready)
+│   ├── full_provider_benchmark.json   # query set (Braintrust-ready)
+│   └── upload_to_braintrust.py        # upload dataset to Braintrust
 ├── scorers/
 │   ├── prompts/                       # LLM judge prompts
 │   ├── field_fill_scorer.py
@@ -31,7 +34,7 @@ data/people-search-eval/
 
 1. **Python** ≥ 3.10  
 2. **Provider client package** — Nyne / PDL / Exa HTTP clients live in a separate checkout of `people-search-eval` (not vendored here). Clone it next to this repo (or anywhere) and install it editable.  
-3. **API keys** for the providers you want to run + Braintrust (for cloud logging / LLM judges).
+3. **API keys** for the providers you want to run + Braintrust.
 
 Typical sibling layout:
 
@@ -65,7 +68,7 @@ Edit `.env` and set at least:
 | `NYNE_API_KEY`, `NYNE_API_SECRET` | Nyne runs |
 | `PDL_API_KEY` | PDL runs |
 | `EXA_API_KEY` | Exa runs |
-| `BRAINTRUST_API_KEY` | Uploading experiments + LLM judges |
+| `BRAINTRUST_API_KEY` | Dataset upload, experiments, LLM judges |
 
 Defaults already set for low-cost Nyne runs (`NYNE_INSIGHTS=0`, `NYNE_SEARCH_LIMIT=5`, etc.). See `.env.example` for the full list.
 
@@ -80,34 +83,33 @@ This creates / replaces `people-judge-overall` and `people-judge-persona` in the
 
 ## Run evals
 
-All commands below assume:
+All runs use the **Braintrust cloud dataset** (including smoke tests). Do this once first, then run any of the commands below.
 
 ```bash
 cd data/people-search-eval
 source .venv/bin/activate
 ```
 
-### Smoke test (local dataset, no Braintrust upload)
-
-Uses `dataset/full_provider_benchmark.json` directly:
+### 1. Upload the dataset to Braintrust
 
 ```bash
-python eval/run_nyne.py --local-dataset --limit 3 --no-send-logs --low-credits
-python eval/run_pdl.py  --local-dataset --limit 3 --no-send-logs
-python eval/run_exa.py  --local-dataset --limit 3 --no-send-logs
+python dataset/upload_to_braintrust.py
+# Dry run: python dataset/upload_to_braintrust.py --dry-run
 ```
 
-### Full local run (all 240 rows, upload to Braintrust)
+This upserts all 240 rows into project `people-data-provider-evals`, dataset `full_provider_benchmark`.
+
+You can also upload manually in the Braintrust UI: create a dataset named `full_provider_benchmark` in that project and import `dataset/full_provider_benchmark.json`.
+
+### 2. Smoke test (cloud, 3 rows)
 
 ```bash
-python eval/run_nyne.py --local-dataset --low-credits
-python eval/run_pdl.py  --local-dataset
-python eval/run_exa.py  --local-dataset
+python eval/run_nyne.py --project people-data-provider-evals --dataset full_provider_benchmark --limit 3 --low-credits
+python eval/run_pdl.py  --project people-data-provider-evals --dataset full_provider_benchmark --limit 3
+python eval/run_exa.py  --project people-data-provider-evals --dataset full_provider_benchmark --limit 3
 ```
 
-### Full cloud run (dataset already in Braintrust)
-
-Requires the dataset `full_provider_benchmark` to exist in project `people-data-provider-evals` (upload once via Braintrust UI or your existing upload tooling):
+### 3. Full run (cloud, all 240 rows)
 
 ```bash
 python eval/run_nyne.py --project people-data-provider-evals --dataset full_provider_benchmark --low-credits
@@ -115,7 +117,12 @@ python eval/run_pdl.py  --project people-data-provider-evals --dataset full_prov
 python eval/run_exa.py  --project people-data-provider-evals --dataset full_provider_benchmark
 ```
 
+Experiments appear here:  
+https://www.braintrust.dev/app/you.com-staging/p/people-data-provider-evals/experiments
+
 ### Nyne routing audit (no API calls)
+
+Prints how rows map to Nyne endpoints without calling providers. Still reads the cloud dataset metadata path via `--dataset` defaults after upload; for a local file audit only:
 
 ```bash
 python eval/run_nyne.py --routing-audit --local-dataset
@@ -125,8 +132,8 @@ python eval/run_nyne.py --routing-audit --local-dataset
 
 | Flag | Meaning |
 |------|---------|
-| `--local-dataset` | Load `dataset/full_provider_benchmark.json` instead of a Braintrust dataset |
-| `--dataset NAME` | Use a Braintrust cloud dataset |
+| `--project NAME` | Braintrust project (default: `people-data-provider-evals`) |
+| `--dataset NAME` | Braintrust cloud dataset (default: `full_provider_benchmark`) |
 | `--limit N` | Run only the first N rows |
 | `--no-send-logs` | Do not upload the experiment to Braintrust |
 | `--no-llm-judges` | Deterministic scorers only (skip Braintrust LLM judges) |
