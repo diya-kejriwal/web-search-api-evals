@@ -9,15 +9,6 @@ PERSONA_SLUGS = {
     "VC / PE / Investor": "investor",
 }
 
-PERSONA_TO_EXA_CATEGORY_GROUP = {
-    "recruiter": "talent_sourcing",
-    "sdr": "contact_information",
-    "compliance": "identity_verification",
-    "journalist": "social_media_intelligence",
-    "events": "contact_information",
-    "investor": "talent_sourcing",
-}
-
 TRACKED_FIELDS: tuple[str, ...] = (
     "displayname",
     "current_title",

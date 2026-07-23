@@ -1,66 +1,58 @@
-"""People-search API samplers (structured people[] output, no LLM synthesis).
+"""Generic HTTP people-search sampler (any endpoint that returns people[]).
 
-These samplers depend on the optional sibling package ``people-search-eval``
-(Nyne / PDL / Exa people clients). Install with::
+Request (POST JSON)::
 
-    pip install -e /path/to/people-search-eval
+    {
+      "query": "<natural language query>",
+      "metadata": {
+        "benchmark_id": "fp_001",
+        "persona": "...",
+        "persona_slug": "recruiter",
+        "query_type": "enrichment" | "search",
+        "person_name": "...",   # enrichment rows
+        "company": "..."
+      }
+    }
 
-Or set ``PEOPLE_SEARCH_EVAL_SRC`` to that package's ``src/`` directory.
+Response (JSON)::
+
+    {
+      "people": [
+        {
+          "displayname": "...",
+          "current_title": "...",
+          "current_company": "...",
+          "location": "...",
+          "linkedin_url": "...",
+          "highlight": "...",
+          "best_work_email": "...",
+          "phones": ["..."],
+          "top_skills": ["..."],
+          "insights": {},
+          "confidence": {"likelihood": 0.9}
+        }
+      ],
+      "person_count": 1,
+      "error": null
+    }
+
+Configure with ``PEOPLE_SEARCH_API_URL`` and optional ``PEOPLE_SEARCH_API_KEY``
+(sent as ``Authorization: Bearer …``).
 """
 
 from __future__ import annotations
 
-import asyncio
 import json
 import logging
 import os
-import sys
-from pathlib import Path
 from typing import Any
 
-from evals.processing.people_search.routing import (
-    build_execution_record,
-    scorer_payload_from_provider_result,
-)
+import aiohttp
+
+from evals.processing.people_search.schema import normalize_people_payload
 from evals.samplers.base_samplers.base_sampler import BaseSampler
 
 logger = logging.getLogger(__name__)
-
-
-def _ensure_people_search_eval_importable() -> None:
-    try:
-        import people_search_eval  # noqa: F401
-
-        return
-    except ImportError:
-        pass
-
-    candidates: list[Path] = []
-    env = os.environ.get("PEOPLE_SEARCH_EVAL_SRC")
-    if env:
-        candidates.append(Path(env).expanduser())
-
-    # Sibling checkouts relative to this repo
-    repo_root = Path(__file__).resolve().parents[4]
-    candidates.append(repo_root.parent / "people-search-eval" / "src")
-    candidates.append(repo_root / "people-search-eval" / "src")
-
-    for candidate in candidates:
-        src = str(candidate)
-        if candidate.is_dir() and src not in sys.path:
-            sys.path.insert(0, src)
-            try:
-                import people_search_eval  # noqa: F401
-
-                return
-            except ImportError:
-                continue
-
-    raise ImportError(
-        "people_search_eval package not found. Install it with "
-        "`pip install -e /path/to/people-search-eval` or set PEOPLE_SEARCH_EVAL_SRC "
-        "to that package's src/ directory."
-    )
 
 
 def _parse_metadata(ground_truth: str) -> dict:
@@ -73,27 +65,31 @@ def _parse_metadata(ground_truth: str) -> dict:
         return {}
 
 
-class _PeopleSearchSampler(BaseSampler):
-    """Shared base for Nyne / PDL / Exa people samplers."""
-
-    provider: str = "unknown"
+class HttpPeopleSearchSampler(BaseSampler):
+    """Call any people-search HTTP endpoint; score structured people[] output."""
 
     def __init__(
         self,
-        sampler_name: str,
+        sampler_name: str = "http_people_search",
+        api_url: str | None = None,
         api_key: str | None = None,
-        timeout: float = 600.0,
+        timeout: float = 120.0,
         max_retries: int = 2,
-        max_concurrency: int = 2,
+        max_concurrency: int = 5,
     ):
+        self.api_url = (api_url or os.getenv("PEOPLE_SEARCH_API_URL") or "").rstrip("/")
+        # BaseSampler requires a truthy api_key; fall back to the URL as a sentinel
+        # when the endpoint needs no auth.
+        resolved_key = api_key or os.getenv("PEOPLE_SEARCH_API_KEY") or self.api_url
         super().__init__(
             sampler_name=sampler_name,
-            api_key=api_key,
+            api_key=resolved_key,
             timeout=timeout,
             max_retries=max_retries,
             needs_synthesis=False,
             max_concurrency=max_concurrency,
         )
+        self._auth_key = api_key or os.getenv("PEOPLE_SEARCH_API_KEY") or ""
         self._eval_metadata: dict = {}
 
     async def __call__(
@@ -108,86 +104,45 @@ class _PeopleSearchSampler(BaseSampler):
             query_input, dataset, ground_truth=ground_truth, overwrite=overwrite
         )
 
-    def _build_record(self, query: str) -> dict:
-        return build_execution_record(
-            query,
-            self._eval_metadata,
-            for_exa=(self.provider == "exa"),
-        )
-
-    def _execute(self, record: dict) -> dict:
-        raise NotImplementedError
-
     async def get_search_results(self, query: str) -> Any:
-        _ensure_people_search_eval_importable()
-        record = self._build_record(query)
-        try:
-            result = await asyncio.wait_for(
-                asyncio.to_thread(self._execute, record),
-                timeout=self.timeout,
+        if not self.api_url:
+            raise ValueError(
+                "PEOPLE_SEARCH_API_URL is required for http_people_search. "
+                "Point it at any people-search endpoint that returns people[] JSON."
             )
-            return result
-        except asyncio.TimeoutError:
-            error_msg = f"{self.sampler_name} timed out after {self.timeout} seconds"
-            logger.error(error_msg)
-            raise TimeoutError(error_msg) from None
+
+        payload = {
+            "query": query,
+            "metadata": {
+                **self._eval_metadata,
+                "query_text": self._eval_metadata.get("query_text") or query,
+            },
+        }
+        headers = {"Content-Type": "application/json", "Accept": "application/json"}
+        if self._auth_key and self._auth_key != self.api_url:
+            headers["Authorization"] = f"Bearer {self._auth_key}"
+
+        timeout = aiohttp.ClientTimeout(total=self.timeout)
+        async with aiohttp.ClientSession(timeout=timeout) as session:
+            async with session.post(
+                self.api_url, json=payload, headers=headers
+            ) as response:
+                text = await response.text()
+                if response.status >= 400:
+                    return {
+                        "people": [],
+                        "person_count": 0,
+                        "error": f"HTTP {response.status}: {text[:500]}",
+                    }
+                try:
+                    return json.loads(text)
+                except json.JSONDecodeError:
+                    return {
+                        "people": [],
+                        "person_count": 0,
+                        "error": f"Non-JSON response: {text[:500]}",
+                    }
 
     def format_results(self, results: Any) -> str:
-        if not isinstance(results, dict):
-            payload = {
-                "provider": self.provider,
-                "people": [],
-                "person_count": 0,
-                "error": "invalid provider result",
-            }
-        else:
-            payload = scorer_payload_from_provider_result(results, self.provider)
+        payload = normalize_people_payload(results, provider=self.sampler_name)
         return json.dumps(payload, ensure_ascii=False)
-
-
-class NynePeopleSampler(_PeopleSearchSampler):
-    provider = "nyne"
-
-    def __init__(self, sampler_name: str = "nyne_people", **kwargs):
-        api_key = kwargs.pop("api_key", None) or os.getenv("NYNE_API_KEY")
-        super().__init__(sampler_name=sampler_name, api_key=api_key, **kwargs)
-
-    async def get_search_results(self, query: str) -> Any:
-        if not os.getenv("NYNE_API_SECRET"):
-            raise ValueError(
-                "NYNE_API_SECRET is required for nyne_people. Set it in .env."
-            )
-        return await super().get_search_results(query)
-
-    def _execute(self, record: dict) -> dict:
-        from people_search_eval.execute_query import execute_query
-
-        return execute_query(record)
-
-
-class PdlPeopleSampler(_PeopleSearchSampler):
-    provider = "pdl"
-
-    def __init__(self, sampler_name: str = "pdl_people", **kwargs):
-        api_key = kwargs.pop("api_key", None) or os.getenv("PDL_API_KEY")
-        super().__init__(sampler_name=sampler_name, api_key=api_key, **kwargs)
-
-    def _execute(self, record: dict) -> dict:
-        from people_search_eval.execute_pdl_query import execute_pdl_query
-
-        return execute_pdl_query(record)
-
-
-class ExaPeopleSampler(_PeopleSearchSampler):
-    """Exa people-category search (via people-search-eval), not web search snippets."""
-
-    provider = "exa"
-
-    def __init__(self, sampler_name: str = "exa_people", **kwargs):
-        api_key = kwargs.pop("api_key", None) or os.getenv("EXA_API_KEY")
-        super().__init__(sampler_name=sampler_name, api_key=api_key, **kwargs)
-
-    def _execute(self, record: dict) -> dict:
-        from people_search_eval.execute_exa_query import execute_exa_query
-
-        return execute_exa_query(record)

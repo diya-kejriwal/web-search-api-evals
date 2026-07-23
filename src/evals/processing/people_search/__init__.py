@@ -5,11 +5,11 @@ from evals.processing.people_search.field_fill import (
     row_fill_score,
     score_people_output,
 )
-from evals.processing.people_search.routing import build_execution_record
+from evals.processing.people_search.schema import normalize_people_payload
 
 __all__ = [
-    "build_execution_record",
     "extract_people",
+    "normalize_people_payload",
     "row_fill_score",
     "score_people_output",
 ]

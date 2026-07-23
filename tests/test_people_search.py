@@ -6,6 +6,7 @@ import pytest
 
 from evals.processing.evaluate_answer import AnswerGrader
 from evals.processing.people_search.field_fill import score_people_output
+from evals.processing.people_search.schema import normalize_people_payload
 
 
 def test_score_people_output_empty():
@@ -35,6 +36,22 @@ def test_score_people_output_partial_fill():
     assert scores["persona_field_fill"] > 0
 
 
+def test_normalize_people_payload_variants():
+    canonical = normalize_people_payload(
+        {"people": [{"displayname": "A"}], "person_count": 1}
+    )
+    assert canonical["person_count"] == 1
+    assert len(canonical["people"]) == 1
+
+    nested = normalize_people_payload(
+        {"summary": {"people": [{"displayname": "B"}], "person_count": 1}}
+    )
+    assert nested["people"][0]["displayname"] == "B"
+
+    results_key = normalize_people_payload({"results": [{"displayname": "C"}]})
+    assert results_key["person_count"] == 1
+
+
 @pytest.mark.asyncio
 async def test_evaluate_single_people_search_grader():
     grader = AnswerGrader()
@@ -49,7 +66,7 @@ async def test_evaluate_single_people_search_grader():
     )
     predicted = json.dumps(
         {
-            "provider": "nyne",
+            "provider": "http_people_search",
             "person_count": 1,
             "people": [
                 {
