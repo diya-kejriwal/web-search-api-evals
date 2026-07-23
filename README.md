@@ -4,7 +4,9 @@ This repository contains evaluation framework for AI-first web search APIs. Each
 
 The framework supports multiple search providers (You.com, Exa, Tavily, Parallel) and a representative 
 Google SERP–based sampler. For each query, search results are fetched from the search API, synthesized into an answer 
-using an LLM, then graded against the ground truth.[^1] It also includes a dedicated [finance evaluation](#finance-evaluation) suite for benchmarking financial data retrieval.
+using an LLM, then graded against the ground truth.[^1] It also includes a dedicated [finance evaluation](#finance-evaluation)
+suite and a [people search evaluation](#people-search-evaluation) for benchmarking people-data APIs (no gold answers;
+deterministic + LLM scorers on structured `people[]` output).
 
 
 To learn more about our evals methodology and system architecture, please read You.com's research articles:
@@ -59,7 +61,7 @@ the API request is used.
 | DeepSearchQA | Challenging multi-step information seeking tasks. Only recommended for use with research endpoints ([paper](https://storage.googleapis.com/deepmind-media/DeepSearchQA/DeepSearchQA_benchmark_paper.pdf), [dataset](https://huggingface.co/datasets/google/deepsearchqa)) | `--datasets deepsearchqa` |
 | BrowseComp   | A simple and challenging benchmark that measures the ability of AI agents to locate hard-to-find information. Only recommended for use with research endpoints ([paper](https://arxiv.org/abs/2504.12516), [dataset](https://openaipublic.blob.core.windows.net/simple-evals/browse_comp_test_set.csv)) | `--datasets browsecomp`   |
 | FinSearchComp T2 & T3 | Public-company financial lookup benchmarks from filings ([paper](https://arxiv.org/pdf/2509.13160)). T2 covers simple historical lookups; T3 covers complex historical investigations. Grading follows the paper's judge prompt; numbers in different formats (e.g. `12.45%` vs `0.1245`) are treated as equivalent. | `--datasets fin_search_comp_t2_global fin_search_comp_t3_global` |
-| People Search | 240 people-search / enrichment queries across 6 buyer personas. **No gold answers** — graded with deterministic field-fill scorers on structured `people[]` from any people-search HTTP endpoint (`http_people_search`). | `--datasets people_search --samplers http_people_search` |
+| People Search | 240 people enrichment / search queries across 6 buyer personas. **No gold answers.** Point any people-search HTTP API at `http_people_search`; score with deterministic field-fill scorers + optional LLM judges. See [People Search evaluation](#people-search-evaluation). | `--datasets people_search --samplers http_people_search` |
 
 
 ## Installation
@@ -128,7 +130,8 @@ python src/evals/eval_runner.py --clean --samplers you_search_with_livecrawl --d
 - To avoid unintended high credit usage, You.com's Research endpoints are not included in the default samplers. They can 
 be evaluated by calling them explicitly, like `--samplers you_research_standard` or by using `--samplers all`.
 - The BrowseComp and Deep Search QA Datasets are not included in the default benchmark dataset list because they are 
-intended to evaluate Research endpoints. 
+intended to evaluate Research endpoints.
+- `people_search` / `http_people_search` are also excluded from defaults. Run them explicitly (see [People Search evaluation](#people-search-evaluation)).
 
 ### LLM's for synthesis and judging
 By default, GPT 5.4 nano is used for synthesis and GPT 5.4 mini via the OpenAI API is used for grading. 
@@ -200,34 +203,207 @@ python src/evals/eval_runner.py \
 
 ## People Search evaluation
 
-Unlike SimpleQA / FRAMES, the `people_search` dataset has **no gold answers**. Each row is a natural-language
-people enrichment or search query. Point `http_people_search` at **any** people-search HTTP endpoint that returns
-structured `people[]` JSON (no LLM synthesis step). Deterministic scorers measure retrieval and field richness:
+The `people_search` benchmark evaluates **people-data / people-search APIs** (enrichment and open search), not web-search
+snippet → synthesize → gold-answer grading.
 
-| Metric | Meaning |
-|--------|---------|
-| `has_people` / accuracy | At least one person returned (`is_correct`) |
-| `field_fill` | Mean fill ratio across 11 universal person fields (0–1) |
-| `persona_field_fill` | Same fields, weighted by buyer persona |
-| `judge_overall` | LLM overall quality judge (High Value 1.0 / Useful 0.7 / Low Value 0.3 / Failed 0.0) |
-| `judge_persona` | LLM persona-switched judge (same scale) |
+There is **no gold answer** per row. Instead, your API returns structured `people[]`, and the framework scores that
+payload with:
 
-**Endpoint contract:** `POST` JSON `{"query": "...", "metadata": {...}}` →
-`{"people": [...], "person_count": N, "error": null}`. Optional `Authorization: Bearer $PEOPLE_SEARCH_API_KEY`.
-See `src/evals/samplers/applied_samplers/people_search_sampler.py` for the full field list scorers look for.
+1. **Deterministic scorers** (free) — retrieval + field richness  
+2. **LLM judges** (optional) — overall quality + persona-specific quality  
 
-LLM judges use `GRADER_MODEL` (default GPT) and require `OPENAI_API_KEY` or `GOOGLE_GEMINI_API_KEY`.
-Set `PEOPLE_SEARCH_LLM_JUDGES=0` to run deterministic scorers only.
+Use the shared runner:
 
 ```bash
-# Set PEOPLE_SEARCH_API_URL (and optional PEOPLE_SEARCH_API_KEY) in .env
 python src/evals/eval_runner.py \
   --samplers http_people_search \
   --datasets people_search \
   --limit 5
 ```
 
+### Dataset
+
+| | |
+|--|--|
+| File | [`data/people_search_full_dataset.csv`](data/people_search_full_dataset.csv) |
+| Size | 240 queries |
+| Split | 90 enrichment · 150 open search |
+| Personas | Recruiter, SDR/BDR, Compliance, Journalist, Events, Investor (40 each) |
+
+CSV columns: `benchmark_id`, `problem`, `answer` (JSON metadata for scoring — **not** a gold string), `persona`,
+`persona_slug`, `query_type`, `person_name`, `company`.
+
+### Pipeline
+
+```
+problem + metadata
+        │
+        ▼
+http_people_search  ──POST──►  YOUR_PEOPLE_API  ──►  { people[], person_count }
+        │
+        ▼
+deterministic scorers  +  LLM judges (unless disabled)
+        │
+        ▼
+src/evals/results/dataset_people_search_raw_results_http_people_search.csv
+```
+
+No LLM synthesis step (`needs_synthesis=False`). Your endpoint must return people records the scorers understand.
+
+### Environment
+
+| Variable | Required | Purpose |
+|----------|----------|---------|
+| `PEOPLE_SEARCH_API_URL` | Yes | URL of your people-search HTTP endpoint |
+| `PEOPLE_SEARCH_API_KEY` | No | Sent as `Authorization: Bearer …` if set |
+| `OPENAI_API_KEY` or `GOOGLE_GEMINI_API_KEY` | For LLM judges | Same grader models as the rest of the repo |
+| `PEOPLE_SEARCH_LLM_JUDGES` | No (default `1`) | Set to `0` / `false` for deterministic scorers only |
+
+### HTTP endpoint contract
+
+`http_people_search` sends:
+
+```http
+POST $PEOPLE_SEARCH_API_URL
+Content-Type: application/json
+Authorization: Bearer $PEOPLE_SEARCH_API_KEY   # if set
+```
+
+**Request body**
+
+```json
+{
+  "query": "Find work history and current role for William McKinnerney, who works at CoreWeave.",
+  "metadata": {
+    "benchmark_id": "fp_001",
+    "persona": "Recruiter / Talent Sourcer",
+    "persona_slug": "recruiter",
+    "query_type": "enrichment",
+    "person_name": "William McKinnerney",
+    "company": "CoreWeave",
+    "query_text": "Find work history and current role for William McKinnerney, who works at CoreWeave."
+  }
+}
+```
+
+`query_type` is `enrichment` (named person + company) or `search` (open candidate search). Your API is responsible for
+routing (e.g. enrich vs search) using `metadata`.
+
+**Response body (canonical)**
+
+```json
+{
+  "people": [
+    {
+      "displayname": "William McKinnerney",
+      "current_title": "...",
+      "current_company": "CoreWeave",
+      "location": "...",
+      "linkedin_url": "https://...",
+      "highlight": "...",
+      "best_work_email": "...",
+      "phones": ["..."],
+      "top_skills": ["..."],
+      "insights": {},
+      "confidence": {"likelihood": 0.9}
+    }
+  ],
+  "person_count": 1,
+  "error": null
+}
+```
+
+On failure, return `"error": "<message>"` (typically with empty `people` and `person_count: 0`).
+
+**Accepted response variants** (normalized automatically): top-level `people`, `summary.people` / `summary.person`, or
+`results` as a people list. See `src/evals/processing/people_search/schema.py`.
+
+Person field aliases the scorers understand (examples): `headline` → title, `linkedin_url` / `url` → profile URL,
+`best_work_email` / `best_personal_email` / `has_email` → email, `phones` / `has_phone` → phone, `top_skills` → skills.
+
+Full sampler docs: [`src/evals/samplers/applied_samplers/people_search_sampler.py`](src/evals/samplers/applied_samplers/people_search_sampler.py).
+
+### Scorers
+
+#### Deterministic (always on)
+
+Implemented in `src/evals/processing/people_search/field_fill.py`.
+
+| Metric | Range | Meaning |
+|--------|-------|---------|
+| `has_people` | 0 or 1 | At least one person returned |
+| `field_fill` | 0–1 | Mean fill ratio across 11 universal fields (name, title, company, location, profile URL, highlight, email, phone, skills, insights, confidence) |
+| `persona_field_fill` | 0–1 | Same fields, weighted by buyer persona (`persona_slug`) |
+
+Hard rule: API `error` or empty people → deterministic scores are **0**.
+
+Framework `accuracy_score` / `is_correct` for this dataset = **has_people rate** (compatibility with other benchmarks).
+Treat `field_fill` / judge scores as the primary quality metrics.
+
+#### LLM judges (default on)
+
+Prompts: [`src/evals/processing/people_search/prompts/`](src/evals/processing/people_search/prompts/)  
+(`overall.md`, `persona.md`). Uses `GRADER_MODEL` from `src/evals/constants.py`.
+
+| Metric | Scale | Meaning |
+|--------|-------|---------|
+| `judge_overall` | High Value **1.0** · Useful **0.7** · Low Value **0.3** · Failed **0.0** | Cross-persona quality / actionability |
+| `judge_persona` | same | Persona-switched rubric (recruiter, sdr, compliance, journalist, events, investor) |
+
+Also written per row: `judge_overall_label`, `judge_persona_label`, `judge_persona_slug`.
+
+Disable LLM judges (deterministic only):
+
+```bash
+PEOPLE_SEARCH_LLM_JUDGES=0 python src/evals/eval_runner.py \
+  --samplers http_people_search \
+  --datasets people_search \
+  --limit 5
+```
+
+### Running
+
+```bash
+cp .env.example .env
+# Set PEOPLE_SEARCH_API_URL (+ optional PEOPLE_SEARCH_API_KEY)
+# Set OPENAI_API_KEY (or GOOGLE_GEMINI_API_KEY) if using LLM judges
+
+# Smoke test
+python src/evals/eval_runner.py \
+  --samplers http_people_search \
+  --datasets people_search \
+  --limit 5
+
+# Full benchmark
+python src/evals/eval_runner.py \
+  --samplers http_people_search \
+  --datasets people_search \
+  --clean
+```
+
 `http_people_search` is excluded from the default sampler list so it is not accidentally run against SimpleQA/FRAMES.
+
+### Results for people_search
+
+Raw CSV columns include the usual runner fields plus:
+
+`has_people`, `person_count`, `field_fill`, `persona_field_fill`, `judge_overall`, `judge_overall_label`,
+`judge_persona`, `judge_persona_label`, `judge_persona_slug`.
+
+`analyzed_results.csv` also reports `mean_field_fill`, `mean_persona_field_fill`, `has_people_rate`,
+`mean_judge_overall`, and `mean_judge_persona` when those columns are present.
+
+### Key source files
+
+| Path | Role |
+|------|------|
+| `data/people_search_full_dataset.csv` | Benchmark queries |
+| `src/evals/configs/datasets.py` | Registers `people_search` |
+| `src/evals/configs/samplers.py` | Registers `http_people_search` |
+| `src/evals/samplers/applied_samplers/people_search_sampler.py` | Generic HTTP sampler + contract |
+| `src/evals/processing/people_search/` | Deterministic scorers, schema, LLM judges |
+| `src/evals/processing/evaluate_answer.py` | `evaluate_single_people_search` grader |
+| `tests/test_people_search.py` | Unit tests (scorers / label parse; judges off) |
 
 ## Output
 
@@ -241,7 +417,7 @@ src/evals/results/
 
 Raw CSVs contain per-query fields (e.g. query, generated answer, evaluation result, latencies). After a run, 
 `write_metrics()` is called automatically and `analyzed_results.csv` is updated with accuracy and average latency per
-sampler and dataset.
+sampler and dataset. For `people_search`, raw rows also include field-fill and LLM judge scores (see above).
 
 ## Citation
 
@@ -263,6 +439,6 @@ If you use this repository in your research, please consider citing:
 This repository is made available under the [MIT License](LICENSE).
 
 
-[^1]: Search results are fetched from each search API, then synthesized into a single answer using an LLM; the answer is graded by an LLM judge. Synthesis uses GPT 5.4 nano and grading uses GPT 5.4 mini (configurable in `src/evals/constants.py`).
+[^1]: For web-search benchmarks, search results are fetched from each search API, then synthesized into a single answer using an LLM; the answer is graded by an LLM judge. Synthesis uses GPT 5.4 nano and grading uses GPT 5.4 mini (configurable in `src/evals/constants.py`). People Search skips synthesis and scores structured `people[]` instead.
 [^2]: Grading uses prompts aligned with the standard benchmarks as specified in the original papers or repositories (e.g. [SimpleQA](https://openai.com/index/introducing-simpleqa/) and [FRAMES](https://arxiv.org/abs/2409.12941).
 [^3]: FinSearchComp grading uses the judge prompt from the [FinSearchComp paper](https://arxiv.org/pdf/2509.13160).
