@@ -63,7 +63,8 @@ DATASETS = [
         csv_path="data/people_search_full_dataset.csv",
         grader=evaluator.evaluate_single_people_search,
         df=None,
-        # answer column holds scoring metadata JSON, not a gold string
+        # answer column is empty in the CSV (no gold answers); metadata lives in
+        # dedicated columns and is assembled at load time in utils.get_dataset
         requires_ground_truth=False,
     ),
 ]

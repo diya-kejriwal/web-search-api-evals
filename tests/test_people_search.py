@@ -100,6 +100,21 @@ async def test_evaluate_single_people_search_grader(monkeypatch):
     assert "judge_overall" not in result
 
 
+def test_people_search_dataset_builds_metadata_from_columns():
+    """Shipped CSV has empty answer; load time assembles metadata for the runner."""
+    from evals import utils as evals_utils
+
+    ds = evals_utils.get_dataset("people_search")
+    assert ds.df["answer"].iloc[0]
+    meta = json.loads(ds.df["answer"].iloc[0])
+    assert meta["benchmark_id"] == "fp_001"
+    assert meta["persona_slug"] == "recruiter"
+    assert meta["query_type"] == "enrichment"
+    # On-disk CSV answer column remains empty
+    raw = pd.read_csv("data/people_search_full_dataset.csv")
+    assert raw["answer"].isna().all() or (raw["answer"].fillna("") == "").all()
+
+
 def test_people_search_analyzed_metrics_omit_accuracy(tmp_path):
     """people_search analyzed rows must not treat has_people as accuracy_score."""
     raw = tmp_path / "dataset_people_search_raw_results_http_people_search.csv"

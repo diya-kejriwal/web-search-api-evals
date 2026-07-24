@@ -234,14 +234,14 @@ python src/evals/eval_runner.py \
 
 CSV columns: `benchmark_id`, `problem`, `answer`, `persona`, `persona_slug`, `query_type`, `person_name`, `company`.
 
-`problem` is the natural-language query. `answer` is **not** a gold string — it is JSON metadata
-(`benchmark_id`, `persona`, `persona_slug`, `query_type`, `person_name`, `company`) passed into the sampler and grader
-as `ground_truth` / scoring context.
+`problem` is the natural-language query. `answer` is **always empty** in the shipped CSV (no gold / sample answers).
+Scoring context (`persona`, `persona_slug`, `query_type`, `person_name`, `company`, `benchmark_id`) lives in those
+dedicated columns; at load time the runner assembles them into metadata for `http_people_search` and the graders.
 
 ### Pipeline
 
 ```
-CSV row (problem + metadata in answer)
+CSV row (problem + persona / query_type / … columns; answer empty)
         │
         ▼
 http_people_search  ──POST──►  YOUR_PEOPLE_API  ──►  { people[], person_count }
@@ -293,7 +293,8 @@ Authorization: Bearer $PEOPLE_SEARCH_API_KEY   # only if PEOPLE_SEARCH_API_KEY i
 }
 ```
 
-`metadata` comes from the CSV `answer` JSON; the sampler also sets `query_text` to the query string when missing.
+`metadata` is built from the CSV’s dedicated columns (`persona`, `persona_slug`, `query_type`, `person_name`,
+`company`, `benchmark_id`); the sampler also sets `query_text` to the query string when missing.
 `query_type` is `enrichment` (named person ± company) or `search` (open candidate list). **Your API** decides how to
 route (enrich vs search, etc.) from that metadata — the eval runner does not call provider-specific endpoints.
 
@@ -412,8 +413,9 @@ plus scorer columns:
 `has_people`, `person_count`, `field_fill`, `persona_field_fill`, `judge_overall`, `judge_overall_label`,
 `judge_persona`, `judge_persona_label`, `judge_persona_slug` (judge columns omitted when LLM judges are disabled).
 
-`generated_answer` is the JSON people payload string. `ground_truth` is the metadata JSON from the CSV `answer` column.
-`evaluation_result` is `has_people` or `no_people` (not `is_correct` / `is_incorrect`).
+`generated_answer` is the JSON people payload string. `ground_truth` is scoring metadata assembled at load time from
+the dedicated CSV columns (the shipped `answer` column is empty). `evaluation_result` is `has_people` or `no_people`
+(not `is_correct` / `is_incorrect`).
 
 `analyzed_results.csv` for this dataset:
 
