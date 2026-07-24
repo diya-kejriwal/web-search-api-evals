@@ -200,11 +200,11 @@ class AnswerGrader:
             question, output, metadata, model=self.model
         )
 
-        # Binary accuracy for framework compatibility: retrieved at least one person.
-        # Primary quality signals are continuous field_fill + LLM judge scores.
+        # Do not map has_people → is_correct: that confuses analyzed "accuracy"
+        # with gold-answer benchmarks. Row-level label is has_people / no_people.
         return {
             "grade": "has_people" if has_people else "no_people",
-            "score_name": "is_correct" if has_people else "is_incorrect",
+            "score_name": "has_people" if has_people else "no_people",
             "is_correct": has_people,
             "is_incorrect": not has_people,
             "score": scores["field_fill"],

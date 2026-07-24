@@ -2,8 +2,10 @@
 
 import json
 
+import pandas as pd
 import pytest
 
+from evals.eval_results_analyzer import write_metrics
 from evals.processing.evaluate_answer import AnswerGrader
 from evals.processing.people_search.field_fill import score_people_output
 from evals.processing.people_search.llm_judges import _parse_label
@@ -91,8 +93,28 @@ async def test_evaluate_single_people_search_grader(monkeypatch):
     result = await grader.evaluate_single_people_search(
         "Find Ada Lovelace", target, predicted
     )
-    assert result["score_name"] == "is_correct"
+    assert result["score_name"] == "has_people"
     assert result["has_people"] == 1.0
     assert "field_fill" in result
     assert "persona_field_fill" in result
     assert "judge_overall" not in result
+
+
+def test_people_search_analyzed_metrics_omit_accuracy(tmp_path):
+    """people_search analyzed rows must not treat has_people as accuracy_score."""
+    raw = tmp_path / "dataset_people_search_raw_results_http_people_search.csv"
+    raw.write_text(
+        "query,internal_response_time_ms,request_response_time_ms,"
+        "evaluation_result,generated_answer,ground_truth,"
+        "has_people,field_fill,persona_field_fill,judge_overall,judge_persona\n"
+        'q1,10,20,has_people,"{}", "{}",1,0.5,0.6,0.7,0.7\n'
+        'q2,10,20,no_people,"{}", "{}",0,0.0,0.0,0.0,0.0\n',
+        encoding="utf-8",
+    )
+    write_metrics(tmp_path)
+    df = pd.read_csv(tmp_path / "analyzed_results.csv")
+    assert len(df) == 1
+    assert pd.isna(df.loc[0, "accuracy_score"])
+    assert float(df.loc[0, "mean_field_fill"]) == 0.25
+    assert float(df.loc[0, "has_people_rate"]) == 0.5
+    assert float(df.loc[0, "mean_judge_overall"]) == 0.35

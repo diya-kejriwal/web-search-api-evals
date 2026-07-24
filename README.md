@@ -331,14 +331,14 @@ Implemented in `src/evals/processing/people_search/field_fill.py`.
 
 | Metric | Range | Meaning |
 |--------|-------|---------|
-| `has_people` | 0 or 1 | At least one person returned |
+| `has_people` | 0 or 1 | At least one person returned (`evaluation_result`: `has_people` / `no_people`) |
 | `field_fill` | 0–1 | Mean fill ratio across 11 universal fields (name, title, company, location, profile URL, highlight, email, phone, skills, insights, confidence) |
 | `persona_field_fill` | 0–1 | Same fields, weighted by buyer persona (`persona_slug`) |
 
 Hard rule: API `error` or empty people → deterministic scores are **0**.
 
-Framework `accuracy_score` / `is_correct` for this dataset = **has_people rate** (compatibility with other benchmarks).
-Treat `field_fill` / judge scores as the primary quality metrics.
+**Primary quality metrics** (what to compare providers on): `mean_field_fill`, `mean_persona_field_fill`, and the LLM judges below.  
+`has_people` / `has_people_rate` is a retrieval signal only. For `people_search`, `accuracy_score` in `analyzed_results.csv` is left **blank** so it is not confused with gold-answer accuracy on SimpleQA/FRAMES.
 
 #### LLM judges (default on)
 
@@ -390,8 +390,19 @@ Raw CSV columns include the usual runner fields plus:
 `has_people`, `person_count`, `field_fill`, `persona_field_fill`, `judge_overall`, `judge_overall_label`,
 `judge_persona`, `judge_persona_label`, `judge_persona_slug`.
 
-`analyzed_results.csv` also reports `mean_field_fill`, `mean_persona_field_fill`, `has_people_rate`,
-`mean_judge_overall`, and `mean_judge_persona` when those columns are present.
+`evaluation_result` is `has_people` or `no_people` (not `is_correct` / `is_incorrect`).
+
+`analyzed_results.csv` for this dataset emphasizes:
+
+| Column | Meaning |
+|--------|---------|
+| `mean_field_fill` | Primary deterministic quality (0–1) |
+| `mean_persona_field_fill` | Persona-weighted field fill (0–1) |
+| `mean_judge_overall` / `mean_judge_persona` | Mean LLM judge scores when enabled |
+| `has_people_rate` | Fraction of rows that returned ≥1 person (retrieval only) |
+| `accuracy_score` | **Blank** for `people_search` (N/A — not gold-answer accuracy) |
+
+Rows are sorted within the dataset by `mean_field_fill` (then judges / has-people), not by accuracy.
 
 ### Key source files
 
@@ -416,8 +427,8 @@ src/evals/results/
 ```
 
 Raw CSVs contain per-query fields (e.g. query, generated answer, evaluation result, latencies). After a run, 
-`write_metrics()` is called automatically and `analyzed_results.csv` is updated with accuracy and average latency per
-sampler and dataset. For `people_search`, raw rows also include field-fill and LLM judge scores (see above).
+`write_metrics()` is called automatically and `analyzed_results.csv` is updated. For gold-answer datasets that is
+accuracy and latency; for `people_search` it is field-fill / judge means and `has_people_rate` (see above).
 
 ## Citation
 
