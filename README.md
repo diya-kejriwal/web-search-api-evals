@@ -213,8 +213,8 @@ payload with:
 1. **Deterministic scorers** (always on) — retrieval + field richness  
 2. **LLM judges** (on by default; 2 calls per row) — overall quality + persona-specific quality  
 
-This repo does **not** ship Nyne / PDL / Exa (or other) people clients. You point `http_people_search` at **any** HTTP
-endpoint that speaks the contract below (often a thin adapter in front of your provider).
+This repo does **not** ship people-search API clients. Point `http_people_search` at **any** people-search HTTP
+endpoint that speaks the contract below (or a thin adapter in front of your existing API).
 
 ```bash
 python src/evals/eval_runner.py \
